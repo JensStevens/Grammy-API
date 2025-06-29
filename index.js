@@ -4,7 +4,7 @@ import csv from "csvtojson";
 import hofRoutes from "./routes/hall_of_fame.js";
 
 const app = express();
-const db = new Database("foobar.db", { verbose: console.log });
+const db = new Database("hall_of_fame.db", { verbose: console.log });
 
 db.exec(
   "CREATE TABLE IF NOT EXISTS artist (id INTEGER PRIMARY KEY NOT NULL, artist TEXT NOT NULL)"
