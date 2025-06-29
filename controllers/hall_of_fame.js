@@ -3,6 +3,7 @@ import { SQLBuilder } from "../SqlBuilder.js";
 class HallOfFameController {
   async get(req, res) {
     try {
+      const { limit, offset } = req.query;
       const sql = new SQLBuilder()
         .select(
           "hof.title",
@@ -19,45 +20,46 @@ class HallOfFameController {
         .join("released as rel", "hof.released_id = rel.id")
         .join("label as l", "hof.label_id = l.id")
         .orderBy("inducted", "DESC")
-        .limit(req.query.limit || 10)
-        .offset(req.query.offset || 0)
+        .limit(limit || 10)
+        .offset(offset || 0)
         .build();
       const result = await req.db.prepare(sql).all();
-      //   console.log(result);
       res.send(result);
     } catch (error) {
       console.error("Error fetching hall of fame data:", error);
       res.status(500).send("Internal Server Error");
     }
   }
+
   async search(req, res) {
     try {
+      const { title, artist, category, inducted, released, label, limit, offset } = req.query;
       const whereClauses = [];
-      let values = [];
+      const values = [];
 
-      if (req.query.title) {
+      if (title) {
         whereClauses.push("hof.title");
-        values.push(`%${req.query.title}%`);
+        values.push(`%${title}%`);
       }
-      if (req.query.artist) {
+      if (artist) {
         whereClauses.push("a.artist");
-        values.push(`%${req.query.artist}%`);
+        values.push(`%${artist}%`);
       }
-      if (req.query.category) {
+      if (category) {
         whereClauses.push("c.category");
-        values.push(`%${req.query.category}%`);
+        values.push(`%${category}%`);
       }
-      if (req.query.inducted) {
+      if (inducted) {
         whereClauses.push("ind.year");
-        values.push(`%${req.query.inducted}%`);
+        values.push(`%${inducted}%`);
       }
-      if (req.query.released) {
+      if (released) {
         whereClauses.push("rel.year");
-        values.push(`%${req.query.released}%`);
+        values.push(`%${released}%`);
       }
-      if (req.query.label) {
+      if (label) {
         whereClauses.push("l.label");
-        values.push(`%${req.query.label}%`);
+        values.push(`%${label}%`);
       }
 
       const sql = new SQLBuilder()
@@ -76,10 +78,9 @@ class HallOfFameController {
         .join("released as rel", "hof.released_id = rel.id")
         .join("label as l", "hof.label_id = l.id")
         .where(whereClauses.join(" LIKE ? AND "), "LIKE", values)
-        .limit(req.query.limit || 10)
-        .offset(req.query.offset || 0)
+        .limit(limit || 10)
+        .offset(offset || 0)
         .build();
-      console.log(sql);
       const result = await req.db.prepare(sql).all(values);
       res.send(result);
     } catch (error) {
@@ -87,6 +88,38 @@ class HallOfFameController {
       res.status(500).send("Internal Server Error");
     }
   }
+
+  async getByYear(req, res) {
+    try {
+      const { year } = req.params;
+      const { limit, offset } = req.query;
+      const sql = new SQLBuilder()
+        .select(
+          "hof.title",
+          "a.artist as artist",
+          "c.category as category",
+          "ind.year as inducted",
+          "rel.year as released",
+          "l.label as label"
+        )
+        .from("hall_of_fame as hof")
+        .join("artist as a", "hof.artist_id = a.id")
+        .join("category as c", "hof.category_id = c.id")
+        .join("inducted as ind", "hof.inducted_id = ind.id")
+        .join("released as rel", "hof.released_id = rel.id")
+        .join("label as l", "hof.label_id = l.id")
+        .where("ind.year")
+        .limit(limit || 10)
+        .offset(offset || 0)
+        .build();
+      const result = await req.db.prepare(sql).all(year);
+      res.send(result);
+    } catch (error) {
+      console.error("Error fetching hall of fame data:", error);
+      res.status(500).send("Internal Server Error");
+    }
+  }
 }
 
 export default new HallOfFameController();
+
