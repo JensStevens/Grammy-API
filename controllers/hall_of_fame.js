@@ -4,7 +4,7 @@ class HallOfFameController {
   async get(req, res) {
     try {
       const { limit, offset } = req.query;
-      const sql = new SQLBuilder()
+      const sqlBuilder = new SQLBuilder()
         .select(
           "hof.title",
           "a.artist as artist",
@@ -18,13 +18,41 @@ class HallOfFameController {
         .join("category as c", "hof.category_id = c.id")
         .join("inducted as ind", "hof.inducted_id = ind.id")
         .join("released as rel", "hof.released_id = rel.id")
-        .join("label as l", "hof.label_id = l.id")
-        .orderBy("inducted", "DESC")
+        .join("label as l", "hof.label_id = l.id");
+
+      const sort = req.query.sort;
+      const dir = req.query.dir?.toUpperCase() === "DESC" ? "DESC" : "ASC";
+      const sortableFields = {
+        title: "hof.title",
+        artist: "a.artist",
+        category: "c.category",
+        inducted: "ind.year",
+        released: "rel.year",
+        label: "l.label",
+      };
+
+      if (sort && sortableFields[sort]) {
+        sqlBuilder.orderBy(sortableFields[sort], dir);
+      } else {
+        sqlBuilder.orderBy("ind.year", "DESC"); // default sort
+      }
+
+      const sql = sqlBuilder
         .limit(limit || 10)
         .offset(offset || 0)
         .build();
       const result = await req.db.prepare(sql).all();
-      res.send(result);
+      const sqlCount = new SQLBuilder()
+        .select("COUNT(*) as count")
+        .from("hall_of_fame as hof")
+        .join("artist as a", "hof.artist_id = a.id")
+        .join("category as c", "hof.category_id = c.id")
+        .join("inducted as ind", "hof.inducted_id = ind.id")
+        .join("released as rel", "hof.released_id = rel.id")
+        .join("label as l", "hof.label_id = l.id")
+        .build();
+      const count = (await req.db.prepare(sqlCount).get()).count;
+      res.send({ data: result, count });
     } catch (error) {
       console.error("Error fetching hall of fame data:", error);
       res.status(500).send("Internal Server Error");
@@ -33,7 +61,16 @@ class HallOfFameController {
 
   async search(req, res) {
     try {
-      const { title, artist, category, inducted, released, label, limit, offset } = req.query;
+      const {
+        title,
+        artist,
+        category,
+        inducted,
+        released,
+        label,
+        limit,
+        offset,
+      } = req.query;
       const whereClauses = [];
       const values = [];
 
@@ -122,4 +159,3 @@ class HallOfFameController {
 }
 
 export default new HallOfFameController();
-
