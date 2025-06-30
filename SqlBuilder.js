@@ -17,6 +17,11 @@ export class SQLBuilder {
     return this;
   }
 
+  whereRaw(whereClause) {
+    this.#sql.push(`WHERE ${whereClause}`);
+    return this;
+  }
+
   insert(table, columns) {
     this.#sql.push(`INSERT INTO ${table} (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`);
     return this;

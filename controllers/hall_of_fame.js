@@ -68,6 +68,10 @@ class HallOfFameController {
         inducted,
         released,
         label,
+        inducted_from,
+        inducted_to,
+        released_from,
+        released_to,
         limit,
         offset,
       } = req.query;
@@ -75,24 +79,40 @@ class HallOfFameController {
       const values = [];
 
       if (title) {
-        whereClauses.push("hof.title");
+        whereClauses.push("hof.title LIKE ?");
         values.push(`%${title}%`);
       }
       if (artist) {
-        whereClauses.push("a.artist");
+        whereClauses.push("a.artist LIKE ?");
         values.push(`%${artist}%`);
       }
       if (category) {
-        whereClauses.push("c.category");
+        whereClauses.push("c.category LIKE ?");
         values.push(`%${category}%`);
       }
       if (inducted) {
-        whereClauses.push("ind.year");
+        whereClauses.push("ind.year LIKE ?");
         values.push(`%${inducted}%`);
       }
+      if (inducted_from) {
+        whereClauses.push("ind.year >= ?");
+        values.push(inducted_from);
+      }
+      if (inducted_to) {
+        whereClauses.push("ind.year <= ?");
+        values.push(inducted_to);
+      }
       if (released) {
-        whereClauses.push("rel.year");
+        whereClauses.push("rel.year LIKE ?");
         values.push(`%${released}%`);
+      }
+      if (released_from) {
+        whereClauses.push("rel.year >= ?");
+        values.push(released_from);
+      }
+      if (released_to) {
+        whereClauses.push("rel.year <= ?");
+        values.push(released_to);
       }
       if (label) {
         whereClauses.push("l.label");
@@ -114,10 +134,11 @@ class HallOfFameController {
         .join("inducted as ind", "hof.inducted_id = ind.id")
         .join("released as rel", "hof.released_id = rel.id")
         .join("label as l", "hof.label_id = l.id")
-        .where(whereClauses.join(" LIKE ? AND "), "LIKE", values)
+        .whereRaw(whereClauses.join(" AND "), "", values)
         .limit(limit || 10)
         .offset(offset || 0)
         .build();
+      // console.log(sql);
       const result = await req.db.prepare(sql).all(values);
       res.send(result);
     } catch (error) {
