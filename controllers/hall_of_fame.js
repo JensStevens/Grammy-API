@@ -74,6 +74,8 @@ class HallOfFameController {
         released_to,
         limit,
         offset,
+        sort,
+        dir,
       } = req.query;
       const whereClauses = [];
       const values = [];
@@ -115,11 +117,11 @@ class HallOfFameController {
         values.push(released_to);
       }
       if (label) {
-        whereClauses.push("l.label");
+        whereClauses.push("l.label LIKE ?");
         values.push(`%${label}%`);
       }
 
-      const sql = new SQLBuilder()
+      const sqlBuilder = new SQLBuilder()
         .select(
           "hof.title",
           "a.artist as artist",
@@ -133,12 +135,32 @@ class HallOfFameController {
         .join("category as c", "hof.category_id = c.id")
         .join("inducted as ind", "hof.inducted_id = ind.id")
         .join("released as rel", "hof.released_id = rel.id")
-        .join("label as l", "hof.label_id = l.id")
-        .whereRaw(whereClauses.join(" AND "), "", values)
+        .join("label as l", "hof.label_id = l.id");
+      
+      if (whereClauses.length) {
+        sqlBuilder.whereRaw(whereClauses.join(" AND "));
+      }
+
+      const sortableFields = {
+        title: "hof.title",
+        artist: "a.artist",
+        category: "c.category",
+        inducted: "ind.year",
+        released: "rel.year",
+        label: "l.label",
+      };
+
+      const orderDirection = dir?.toUpperCase() === "DESC" ? "DESC" : "ASC";
+      if (sort && sortableFields[sort]) {
+        sqlBuilder.orderBy(sortableFields[sort], orderDirection);
+      } else {
+        sqlBuilder.orderBy("ind.year", "DESC"); // default sort
+      }
+
+      const sql = sqlBuilder
         .limit(limit || 10)
         .offset(offset || 0)
         .build();
-      // console.log(sql);
       const result = await req.db.prepare(sql).all(values);
       res.send(result);
     } catch (error) {
@@ -150,8 +172,8 @@ class HallOfFameController {
   async getByYear(req, res) {
     try {
       const { year } = req.params;
-      const { limit, offset } = req.query;
-      const sql = new SQLBuilder()
+      const { limit, offset, sort, dir } = req.query;
+      const sqlBuilder = new SQLBuilder()
         .select(
           "hof.title",
           "a.artist as artist",
@@ -166,7 +188,25 @@ class HallOfFameController {
         .join("inducted as ind", "hof.inducted_id = ind.id")
         .join("released as rel", "hof.released_id = rel.id")
         .join("label as l", "hof.label_id = l.id")
-        .where("ind.year")
+        .where("ind.year");
+
+      const sortableFields = {
+        title: "hof.title",
+        artist: "a.artist",
+        category: "c.category",
+        inducted: "ind.year",
+        released: "rel.year",
+        label: "l.label",
+      };
+
+      const orderDirection = dir?.toUpperCase() === "DESC" ? "DESC" : "ASC";
+      if (sort && sortableFields[sort]) {
+        sqlBuilder.orderBy(sortableFields[sort], orderDirection);
+      } else {
+        sqlBuilder.orderBy("ind.year", "DESC"); // default sort
+      }
+
+      const sql = sqlBuilder
         .limit(limit || 10)
         .offset(offset || 0)
         .build();
